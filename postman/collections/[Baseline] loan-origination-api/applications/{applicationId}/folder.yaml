@@ -1,0 +1,6 @@
+type: folder
+name: '{applicationId}'
+items:
+  - ref: ./underwriting/folder.yaml
+  - ref: ./documents/folder.yaml
+  - ref: ./Get application details.request.yaml

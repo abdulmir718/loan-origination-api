@@ -1,0 +1,10 @@
+workspace:
+  id: fa0da927-566e-4d08-ab19-5ed413f80e10
+cloudResources:
+  collections:
+    ../postman/collections/[Baseline] loan-origination-api: 48828008-885e4b46-4738-4fb3-bb89-2fc4d47917b7
+    ../postman/collections/[Smoke] loan-origination-api: 48828008-624337c8-974d-4beb-86c4-485b950eab38
+    ../postman/collections/[Contract] loan-origination-api: 48828008-598e7be6-8c72-4eac-9067-f1fe71fce3e1
+localResources:
+  specs:
+    - ../index.yaml

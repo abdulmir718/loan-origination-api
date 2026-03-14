@@ -1,0 +1,51 @@
+type: http
+name: Trigger underwriting evaluation
+url: '{{baseUrl}}/applications/:applicationId/underwriting'
+method: POST
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: Accept
+    value: application/json
+pathVariables:
+  - key: applicationId
+    value: string
+body:
+  type: json
+  content: |-
+    {
+      "reevaluationReason": "string",
+      "includeManualReview": false
+    }
+examples:
+  - response:
+      statusCode: 202
+      statusText: Accepted
+      body:
+        type: json
+        content: |-
+          {
+            "applicationId": "string",
+            "status": "failed",
+            "decision": "denied",
+            "riskScore": 0,
+            "evaluatedAt": "1950-09-28T17:41:26.465Z"
+          }
+      headers:
+        - key: Content-Type
+          value: application/json
+    name: Underwriting evaluation queued
+  - response:
+      statusCode: 404
+      statusText: Not Found
+      body:
+        type: text
+        content: ''
+    name: Application not found
+  - response:
+      statusCode: 409
+      statusText: Conflict
+      body:
+        type: text
+        content: ''
+    name: Underwriting already in progress

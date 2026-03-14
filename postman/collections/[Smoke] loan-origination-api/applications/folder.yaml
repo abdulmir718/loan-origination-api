@@ -1,0 +1,6 @@
+type: folder
+name: applications
+items:
+  - ref: ./{applicationId}/folder.yaml
+  - ref: ./Submit a new loan application.request.yaml
+  - ref: ./List loan applications.request.yaml

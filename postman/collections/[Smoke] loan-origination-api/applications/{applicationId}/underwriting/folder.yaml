@@ -1,0 +1,4 @@
+type: folder
+name: underwriting
+items:
+  - ref: ./Trigger underwriting evaluation.request.yaml

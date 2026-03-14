@@ -1,0 +1,5 @@
+type: folder
+name: documents
+items:
+  - ref: ./Upload a document.request.yaml
+  - ref: ./List application documents.request.yaml
