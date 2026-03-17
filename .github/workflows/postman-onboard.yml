@@ -1,31 +1,127 @@
+# Display name shown in the GitHub Actions tab UI.
+# This is what you click on to trigger the workflow manually.
 name: Postman API Onboarding — Loan Origination Service
 
+# Trigger: workflow_dispatch means this only runs when manually triggered
+# from the GitHub Actions tab (Actions → select workflow → Run workflow).
+# A production setup would also add:
+#   push:
+#     branches: [main]
+#     paths:
+#       - 'specs/**'
+# ...so it re-runs automatically whenever the spec file changes.
 on:
   workflow_dispatch:
 
+# Permissions granted to the GITHUB_TOKEN that GitHub auto-generates for each run.
+# - actions: write  → allows the action to read and write GitHub repo variables
+#                     (POSTMAN_WORKSPACE_ID, POSTMAN_SPEC_UID, etc. for idempotency)
+# - contents: write → allows the action to commit files back to the repo
+#                     (postman/collections/ YAML, .postman/ config files)
+# NOTE: 'variables: write' is NOT a valid GitHub Actions permissions scope —
+# that was a mistake caught and fixed during this exercise. Variable writes
+# are handled by the gh-fallback-token PAT, not the workflow permissions block.
 permissions:
   actions: write
   contents: write
 
 jobs:
   onboard:
+    # The runner environment. ubuntu-latest is standard for CI jobs.
+    # The Postman action has no platform-specific dependencies.
     runs-on: ubuntu-latest
+
     steps:
+      # Step 1: Check out the repo so the spec file is available on disk
+      # AND so GitHub repo variables can be written back at the end of the run.
+      # The spec-url input below fetches the spec from raw.githubusercontent.com,
+      # but checkout is still required for the repo-sync action to commit artifacts.
       - uses: actions/checkout@v4
 
+      # Step 2: The core onboarding action.
+      # postman-api-onboarding-action@v0 is a composite action maintained by
+      # the Postman CS engineering team (postman-cs org on GitHub).
+      # It internally chains two sub-actions in sequence:
+      #   1. postman-bootstrap-action@v0   → creates all Postman assets
+      #   2. postman-repo-sync-action@v0   → exports artifacts back to this repo
+      # You call only this one action; it wires the outputs of bootstrap into
+      # repo-sync automatically — no manual output passing needed.
       - name: Onboard to Postman
         uses: postman-cs/postman-api-onboarding-action@v0
         with:
+
+          # Human-readable name for this service. Used in:
+          # - Postman workspace name (e.g. "LEN-loan-origination-api")
+          # - GitHub repo variable prefixes written after the run
+          # Convention: kebab-case, matches the GitHub repo name exactly.
           project-name: loan-origination-api
+
+          # Business domain this service belongs to.
+          # Different from the payment service (payments → lending).
+          # This is the key input that routes to the correct governance group.
           domain: lending
+
+          # Short uppercase prefix for workspace naming.
+          # Results in workspace name: "LEN-loan-origination-api"
+          # Different from PAY (payment service) to keep workspaces clearly separated.
           domain-code: LEN
+
+          # Email address to invite into the created Postman workspace.
+          # Same requester as payment service — in a real engagement each domain
+          # team would have its own DL or DevOps lead here.
           requester-email: honeymir805@gmail.com
+
+          # Publicly fetchable URL to the raw OpenAPI spec for this service.
+          # Points to the loan origination spec in THIS repo (not the payment repo).
+          # Must be pushed to this repo before the workflow is triggered.
           spec-url: https://raw.githubusercontent.com/abdulmir718/loan-origination-api/main/specs/loan-origination-api-openapi.yaml
+
+          # JSON array of environment tier names.
+          # Same two tiers as payment service (prod + staging).
+          # The loan spec defines prod and staging server URLs — these slugs match.
           environments-json: '["prod","staging"]'
+
+          # JSON object mapping each environment slug to its base URL.
+          # DIFFERENT from payment service: this service runs on ECS behind an
+          # Application Load Balancer (ALB), not Lambda + API Gateway.
+          # URL structure reflects ALB DNS naming convention (lending-api.example.com)
+          # vs API Gateway convention (api.payments.example.com).
+          # Both are placeholder example.com domains for the exercise.
           env-runtime-urls-json: '{"prod":"https://lending-api.example.com/v1","staging":"https://lending-api-staging.example.com/v1"}'
+
+          # Maps the 'lending' domain to the "Lending Engineering" governance group.
+          # DIFFERENT from payment service which maps to "Payments Engineering".
+          # In a real engagement this maps to the customer's actual Postman team structure.
+          # Requires a valid POSTMAN_ACCESS_TOKEN — silently skipped if token is missing/expired.
           governance-mapping-json: '{"lending":"Lending Engineering"}'
+
+          # Explicitly disable auto-generation of a CI workflow file.
+          # Same reasoning as payment service — we don't want a generated ci.yml
+          # layered on top of the onboarding workflow for this exercise.
           generate-ci-workflow: 'false'
+
+          # Long-lived Postman API key (PMAK). Same key as payment service —
+          # one PMAK can be used across multiple repos. Does not expire.
           postman-api-key: ${{ secrets.POSTMAN_API_KEY }}
+
+          # Short-lived Postman session token. Same constraints as payment service:
+          # required for Bifrost, governance, system env associations.
+          # Silently skips those three features if missing or expired.
+          # NOTE: This service uses mTLS for service-to-service auth.
+          # The action does NOT provision TLS certificates. After a successful run,
+          # the ops team must manually add to the Postman environments:
+          #   - mtls_client_cert  (base64-encoded PEM client cert from internal PKI)
+          #   - mtls_client_key   (base64-encoded PEM private key)
+          #   - mtls_ca_cert      (CA cert for server identity validation)
+          # These are stored as Secret-type environment variables in Postman.
           postman-access-token: ${{ secrets.POSTMAN_ACCESS_TOKEN }}
+
+          # Auto-generated GitHub token for this workflow run.
+          # Same purpose as payment service: enables idempotent reruns by writing
+          # POSTMAN_WORKSPACE_ID, POSTMAN_SPEC_UID, and collection UIDs as repo variables.
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+          # GitHub PAT with 'repo' and 'workflow' scopes.
+          # Same constraint as payment service: GITHUB_TOKEN cannot write to
+          # .github/workflows/ files — this PAT bypasses that restriction.
           gh-fallback-token: ${{ secrets.GH_FALLBACK_TOKEN }}
